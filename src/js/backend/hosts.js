@@ -3,6 +3,7 @@ import UID from 'uid';
 
 import io from './io';
 import log from './log';
+import Lang from './language';
 import { HOSTS_COUNT_MATHER,
          TOTAL_HOSTS_UID,
          WORKSPACE } from '../constants';
@@ -19,30 +20,34 @@ const countRules = (text) => {
 class Hosts {
     constructor (options) {
         const { index, uid, name, online, url, count, text } = options;
-        this.index = index || 0;
-        this.uid = uid || UID(16);
-        this.name = name || '';
+        this.uid    = uid || UID(16);
+        this.url    = url || '';
+        this.name   = name || '';
+        this.index  = index || 0;
         this.online = online || false;
-        this.url = url || '';
-        this.count = count || 0;
+
         if (uid === TOTAL_HOSTS_UID) {
             this.text = text;
+            this.count = count || 0;
         } else {
             this.setText(text || '');
         }
-        this.isSyncing = false;
+
+        // private properties
+        this.__online = null;
+        this.__isSyncing = false;
     }
 
     toObject () {
-        return {
-            uid:    this.uid,
-            url:    this.url,
-            name:   this.name,
-            text:   this.text,
-            index:  this.index,
-            online: this.online,
-            count:  this.count,
-        };
+        const output = {};
+        for (let key in this) {
+            // not a private property
+            if (!this.hasOwnProperty(key) || key.slice(0, 2) === '__') {
+                continue;
+            }
+            output[key] = this[key];
+        }
+        return output;
     }
 
     setText (text) {
@@ -55,17 +60,25 @@ class Hosts {
     }
 
     stashStatus () {
-        if (typeof(this.__online) === 'undefined') {
+        if (this.__online === null) {
             this.__online = this.online;
             this.online = false;
         }
     }
 
     popStatus () {
-        if (typeof(this.__online) !== 'undefined') {
+        if (this.__online !== null) {
             this.online = this.__online;
-            delete this.__online;
+            this.__online = null;
         }
+    }
+
+    getStashedStatus () {
+        return this.__online;
+    }
+
+    isSyncing () {
+        return this.__isSyncing;
     }
 
     save () {
@@ -95,14 +108,14 @@ class Hosts {
 
     updateFromUrl () {
         if (this.url) {
-            this.isSyncing = true;
+            this.__isSyncing = true;
             return io.requestUrl(this.url).then((text) => {
                 this.setText(text);
-                this.isSyncing = false;
+                this.__isSyncing = false;
                 return this.save();
             }).catch((error) => {
                 log(error);
-                this.isSyncing = false;
+                this.__isSyncing = false;
                 return Promise.resolve();
             });
         } else {
@@ -113,10 +126,10 @@ class Hosts {
 
 Hosts.createFromText = (text) => {
     return new Hosts({
-        name: 'New Hosts',
-        online: false,
-        url: '',
         text,
+        url: '',
+        online: false,
+        name: Lang.get('common.new_hosts'),
     });
 }
 

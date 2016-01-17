@@ -95,7 +95,7 @@ class Settings extends Component {
     __onExportZipClick () {
         const zip = new JSZip();
         const { manifest } = this.props;
-        zip.file('manifest.json', JSON.stringify(manifest.toSimpleObject()));
+        zip.file('manifest.json', JSON.stringify(manifest.toObject()));
         manifest.getHostsList().forEach((hosts) => {
             zip.file(hosts.uid, hosts.text);
         });

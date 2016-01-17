@@ -14,6 +14,9 @@ export default {
         'text': 'Text',
         'all_files': 'All Files',
 
+        'new_hosts': 'New Hosts',
+        'default_hosts': 'Default Hosts',
+
         'update_complete': 'Update Complete',
         'no_update_found': 'No Update Found',
         'update_available': 'Update Available',

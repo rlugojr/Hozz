@@ -4,6 +4,7 @@ const mkdirp = require('mkdirp');
 import io from './io';
 import log from './log';
 import Hosts from './hosts';
+import Lang from './language';
 import { MANIFEST,
          WORKSPACE,
          TOTAL_HOSTS_UID,
@@ -26,31 +27,50 @@ const sysHostsPath = () => {
 
 class Manifest {
     constructor (options) {
-        const { online, language, hosts } = options;
-        this.hosts = new Map();
-        if (hosts instanceof Map) {
-            this.hosts = hosts;
-        } else if (Array.isArray(hosts)) {
-            this.hosts = new Map();
-            hosts.forEach((hostsObj) => {
-                const __hosts = new Hosts(hostsObj);
-                this.hosts.set(__hosts.uid, __hosts);
-            });
-        }
+        const { online, language, content } = options;
+        const __content = Array.from(content);
+
+        // private properties
+        this.__hostsMap = new Map();
+
+        // public properties
         this.online = typeof(online) === 'undefined' ? true : online;
         this.language = typeof(language) === 'undefined' ? navigator.language : language;
+
+        this.content = __content.map((element) => {
+            if (element.type === 'group') {
+                element.content = typeof(element.content) === 'undefined' ? [] : element.content.map((hosts) => {
+                    if (typeof(hosts.uid) !== 'undefined') {
+                        const newHosts = new Hosts(hosts);
+                        this.__hostsMap.set(newHosts.uid, newHosts);
+                        return newHosts;
+                    }
+                    return null;
+                }).filter(element => element !== null);
+                return element;
+            } else if (typeof(element.uid) !== 'undefined') {
+                    const newHosts = new Hosts(element);
+                    this.__hostsMap.set(newHosts.uid, newHosts);
+                    return newHosts;
+            } else {
+                return null;
+            }
+        }).filter(element => element !== null);
+
+        // for debug
+        window['manifest'] = this;
     }
 
     getHostsByUid (uid) {
-        return this.hosts.get(uid);
+        return this.__hostsMap.get(uid);
     }
 
     setHostsByUid (uid, hosts) {
-        return this.hosts.set(uid, hosts);
+        return this.__hostsMap.set(uid, hosts);
     }
 
     getHostsList () {
-        return Array.from(this.hosts.values()).sort((A, B) => {
+        return Array.from(this.__hostsMap.values()).sort((A, B) => {
             return (A.index | 0) - (B.index | 0);
         });
     }
@@ -64,12 +84,15 @@ class Manifest {
     addHosts (hosts) {
         this.sortHosts();
         hosts.index = this.getHostsList().length;
-        this.hosts.set(hosts.uid, hosts);
+        this.__hostsMap.set(hosts.uid, hosts);
         return this;
     }
 
+    /**
+     * TODO: fix
+     */
     removeHosts (hosts) {
-        this.hosts.delete(hosts.uid);
+        this.__hostsMap.delete(hosts.uid);
         this.sortHosts();
         return this;
     }
@@ -110,22 +133,37 @@ class Manifest {
         });
     }
 
-    toSimpleObject () {
-        const __manifest = Object.assign({}, this);
-        const simpleHosts = this.getHostsList().map((hosts) => {
-            const __hosts = hosts.toObject();
-            delete __hosts.text;
-            if (typeof(hosts.__online) !== 'undefined') {
-                __hosts.online = hosts.__online;
+    toObject () {
+        const output = {};
+        for (let key in this) {
+            // not a private property
+            if (!this.hasOwnProperty(key) || key.slice(0, 2) === '__') {
+                continue;
             }
-            return __hosts;
-        });
-        __manifest.hosts = simpleHosts;
-        return __manifest;
+            output[key] = this[key];
+        }
+        output.content = output.content.map((element) => {
+            if (element.type === 'group') {
+                const elements = [].concat(element);
+                elements.content = elements.content.map((hosts) => {
+                    const hostsObj = hosts.toObject();
+                    delete hostsObj.text;
+                    return hostsObj;
+                });
+                return elements;
+            } else if (typeof(element.uid) !== 'undefined') {
+                const hostsObj = element.toObject();
+                delete hostsObj.text;
+                return hostsObj;
+            } else {
+                return null;
+            }
+        })
+        return output;
     }
 
     commit () {
-        return io.writeFile(MANIFEST, JSON.stringify(this.toSimpleObject()));
+        return io.writeFile(MANIFEST, JSON.stringify(this.toObject()));
     }
 
     loadSysHosts () {
@@ -161,23 +199,19 @@ Manifest.loadFromDisk = () => {
     }).catch(() => {
         return Promise.resolve({});
     }).then((json) => {
-        const { hosts } = json;
         const manifest = new Manifest(json);
-        const hostsMap = new Map();
-        if (Array.isArray(hosts)) {
-            const hostsPromises = hosts.map((item) => {
-                const __hosts = new Hosts(item);
-                hostsMap.set(__hosts.uid, __hosts);
-                return __hosts.load();
-            });
-            return Promise.all(hostsPromises).then(() => {
-                manifest.hosts = hostsMap;
+        if (manifest.content.length > 0) {
+            const promises = [];
+            for (let hosts of manifest.__hostsMap.values()) {
+                promises.push(hosts.load());
+            }
+            return Promise.all(promises).then(() => {
                 return Promise.resolve(manifest);
             });
         } else {
             return manifest.loadSysHosts().then((hosts) => {
                 hosts.online = true;
-                hosts.name = 'Default Hosts';
+                hosts.name = Lang.get('common.default_hosts');
                 hosts.save();
                 manifest.addHosts(hosts).commit();
                 return Promise.resolve(manifest);

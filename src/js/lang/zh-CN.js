@@ -14,6 +14,9 @@ export default {
         'text': '文本文件',
         'all_files': '所有文件',
 
+        'new_hosts': '新建Hosts',
+        'default_hosts': '默认Hosts',
+
         'update_complete': '更新完成',
         'no_update_found': '未找到更新',
         'update_available': '更新可用',
