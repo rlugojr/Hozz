@@ -1,6 +1,6 @@
 {
   "name": "Hozz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A better way to manage your hosts.",
   "main": "browser.js",
   "scripts": {
@@ -42,7 +42,6 @@
     "react": "^0.14.3",
     "react-codemirror": "^0.2.2",
     "react-dom": "^0.14.3",
-    "react-dragula": "^1.1.9",
     "react-dropzone": "^3.3.0",
     "react-select": "^1.0.0-beta8",
     "uid": "0.0.2",

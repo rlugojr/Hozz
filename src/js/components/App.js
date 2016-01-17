@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
 import Dropzone from 'react-dropzone';
-import dragula from 'react-dragula';
 
 import { EVENT,
          APP_NAME,
@@ -28,7 +27,6 @@ class App extends Component {
     constructor(props) {
         super(props);
         this.totalHosts = null;
-        this.dragStartPosition = -1;
         this.state = {
             snack: null,
             manifest: null,
@@ -48,23 +46,6 @@ class App extends Component {
         this.__updateManifest(manifest);
         Promise.all(updateRemoteHosts).then(() => {
             event.emit(EVENT.INITIAL_CLOUD_HOSTS_UPDATED);
-        });
-
-        const drake = dragula([document.querySelector('.sidebar-list-dragable')]);
-        drake.on('drag', (element) => {
-            this.dragStartPosition = getPosition(element);
-        });
-        drake.on('drop', (element) => {
-            const { manifest } = this.state;
-            if (manifest && this.dragStartPosition > -1) {
-                manifest.moveHostsIndex(this.dragStartPosition, getPosition(element));
-                manifest.commit();
-            }
-            drake.cancel(true);
-            this.__updateManifest(manifest, false);
-        });
-        drake.on('cancel', (element) => {
-            this.dragStartPosition = -1;
         });
     }
 
