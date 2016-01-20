@@ -1,4 +1,5 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import Dropzone from 'react-dropzone';
 import dragula from 'react-dragula';
 
@@ -293,4 +294,8 @@ App.propTypes = {
     manifest: PropTypes.object,
 };
 
-export default App;
+const mapStateToProps = (state) => {
+    return state;
+}
+
+export default connect(mapStateToProps)(App);
